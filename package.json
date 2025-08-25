@@ -1,0 +1,15 @@
+{
+  "name": "hausaufgabe-25-08-25",
+  "version": "1.0.0",
+  "main": "mwst-rechner.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "jest": "^30.0.5"
+  }
+}
