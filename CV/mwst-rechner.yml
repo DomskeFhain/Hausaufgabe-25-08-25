@@ -1,0 +1,68 @@
+name: Test and Deploy mwst-rechner.js
+
+on: push
+
+jobs: 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+        - name: post a message to Slack
+          uses: slackapi/slack-github-action@v2.1.1
+          with:
+            webhook: ${{ secrets.SLACK_WEBHOOK }}
+            webhook-type: 'incoming-webhook'
+            payload: |
+                text: "Pipeline started: ${{github.event.workflow}}" 
+
+        - name: checkout
+          uses: actions/checkout@v5
+        - name: setup Nodejs
+          uses: actions/setup-node@v4
+          with:
+            node-version: 20
+        - name: install dependencies
+          run: | 
+           cd mwst-rechner
+           npm install
+        - name: run tests
+          run: | 
+           cd mwst-rechner
+           npm run test
+        - name: coverage
+          uses: actions/upload-artifact@v4
+          with:
+            name: coverage
+            path: mwst-rechner/coverage
+
+        - name: post a message to Slack on succes
+          if: ${{ success() }}
+          uses: slackapi/slack-github-action@v2.1.1
+          with:
+            webhook: ${{ secrets.SLACK_WEBHOOK }}
+            webhook-type: 'incoming-webhook'
+            payload: |
+                text: "Testjob finished: ${{github.event.workflow}}"
+
+        - name: post a message to slack on failure
+          if: ${{ failure() }}
+          uses: slackapi/slack-github-action@v2.1.1
+          with:
+            webhook: ${{ secrets.SLACK_WEBHOOK }}
+            webhook-type: 'incoming-webhook'
+            payload: |
+                text: "Testjob failed: ${{github.event.workflow}}"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+        - name: checkout
+          uses: actions/checkout@v5
+        - name: ssh setup
+          run: |
+            mkdir -p ~/.ssh
+            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/privatekey
+            chmod 400 ~/.ssh/privatekey
+            ssh-keyscan -H ${{ secrets.EC2_IP }} >> ~/.ssh/known_hosts
+        - name: copy to EC2
+          run: |
+            scp -i ~/.ssh/privatekey -r mwst-rechner/mwst-rechner.js ${{ secrets.EC2_USER }}@${{ secrets.EC2_IP }}:/home/ubuntu
